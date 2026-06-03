@@ -50,8 +50,9 @@ expectations = np.random.uniform(-0.0005, 0.0005, size=decisions)
 
 trades_combined = []
 for i in range(decisions):
+    # DONT USE THIS: CURRENTLY MAINLY RESPONSIBLE FOR THE MOVEMENT
     # Reference price moves randomly
-    ref *= 1 + ref_moves[i]
+    # ref *= 1 + ref_moves[i]
 
     # Choose an action
     choice = choices[action_choices[i]]
