@@ -1,5 +1,6 @@
 import numpy as np
 from sortedcontainers import SortedDict
+import matplotlib.pyplot as plt
 
 from start import match_order, cancel_limit_order
 
@@ -21,7 +22,7 @@ asks = SortedDict({102: 10, 101.5: 10, 101: 10})
 
 np.random.seed(100)
 
-decisions = 100
+decisions = 2000
 trades_combined = []
 
 choices = [
@@ -38,7 +39,7 @@ ref = 100
 
 for _ in range(decisions):
     choice = np.random.choice(choices, p=probabilities)
-    quantity = np.random.choice(range(1, 100))
+    quantity = np.random.choice(range(1, 10))
 
     if choice == "nothing":
         trades = []
@@ -46,7 +47,6 @@ for _ in range(decisions):
     elif choice == "buy_limit":
         price = generate_price("buy", bids, asks, ref)
         trades, remaining = match_order("buy", price, quantity, bids, asks)
-        print(trades)
 
         # Rest the remaining part of the order, add it to the relevant book
         if remaining > 0:
@@ -56,7 +56,6 @@ for _ in range(decisions):
     elif choice == "sell_limit":
         price = generate_price("sell", bids, asks, ref)
         trades, remaining = match_order("sell", price, quantity, bids, asks)
-        print(trades)
 
         # Rest the remaining part of the order, add it to the relevant book
         if remaining > 0:
@@ -85,3 +84,7 @@ for _ in range(decisions):
         trades = []
 
     trades_combined.append(trades)
+
+prices = [p for trades in trades_combined for (p, q) in trades]
+plt.plot(prices)
+plt.show()
