@@ -26,30 +26,50 @@ print(asks)
 
 # Match incoming order
 # Inputs: type, limit_price, quantity, bids, asks
+def match_order(type, limit_price, quantity, bids, asks):
+    trades = []
+    type = "buy"
 
-trades = []
-type = "buy"
+    if type == "buy":
+        book = asks
+    elif type == "sell":
+        book = bids
 
-if type == "buy":
-    book = asks
-elif type == "sell":
-    book = bids
+    while book:
+        if type == "buy":
+            # Lowest ask is the resting order
+            book_price, book_quantity = book.peekitem(0)
 
-# Highest bid and lowest ask
-bid_price, bid_qty = bids.peekitem(-1)
-ask_price, ask_qty = asks.peekitem(0)
+            # The limit price is the bid price.
+            # bid price (limit price) >= ask price (book price) has to be true
+            if limit_price < book_price:
+                break
 
-# Only the best bid and ask can cross
-# Always match top-against-top, and re-check the top after every fill.
-# The top crossing is your only signal to continue; the top not crossing is a complete proof that you're done.
-if bid_price < ask_price:
-    print("No match")
+        elif type == "sell":
+            # Highest bid is the resting order
+            book_price, book_quantity = book.peekitem(-1)
 
-# If the above condition is false, we have a match
-# So bid_price >= ask_price
-print("Match found")
+            if limit_price > book_price:
+                break
 
-# Trade happens and the lowest demand gets exchanged
-trade_quantity = min(bid_qty, ask_qty)
+        # Trade happens and the lowest demand gets exchanged
+        trade_quantity = min(quantity, book_quantity)
 
-# Price of the trade depends on who the aggressive and passive order was
+        # Book price gets used for the trade
+        trades.append((book_price, trade_quantity))
+
+        # Now handle orders that are big (multiple price levels)
+        quantity -= trade_quantity
+
+        # Update the book
+        if book_quantity == trade_quantity:
+            del book[book_quantity]
+        else:
+            # Small orders that only remove part of the offer
+            book[book_quantity] = book_quantity - trade_quantity
+
+    return trades, quantity
+
+
+trades, quantity = match_order("buy", 100, 10, bids, asks)
+print(trades)
