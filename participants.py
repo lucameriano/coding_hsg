@@ -5,17 +5,13 @@ import matplotlib.pyplot as plt
 from start import match_order, cancel_limit_order
 
 
-def generate_price(type, bids, asks, ref):
+def generate_price(type, bids, asks, ref, expectation):
     if type == "buy":
         anchor = bids.peekitem(-1)[0] if bids else ref  # best bid
     elif type == "sell":
         anchor = asks.peekitem(0)[0] if asks else ref  # best ask
     else:
         raise TypeError(f"Wrong type: {type}")
-
-    # Generate an expectation for the participant
-    # This expectation represents the change in the fair value that the participant expects in the future
-    expectation = np.random.uniform(-0.0005, 0.0005)
 
     # Random price round it to 2 digits to keep orderbook not too fragmented
     random_price = round(anchor * (1 + expectation), 2)
@@ -43,25 +39,33 @@ choices = [
 ]
 probabilities = [0.10, 0.25, 0.25, 0.08, 0.08, 0.12, 0.12]
 
+# Pregenerate randomness
+ref_moves = np.random.normal(0, 2.5e-5, size=decisions)
+action_choices = np.random.choice(len(choices), size=decisions, p=probabilities)
+quantities = np.random.uniform(1, 10, size=decisions)
+# Generate an expectation for the participant
+# This expectation represents the change in the fair value that the participant expects in the future
+expectations = np.random.uniform(-0.0005, 0.0005, size=decisions)
+
 
 trades_combined = []
-for _ in range(decisions):
+for i in range(decisions):
     # Reference price moves randomly
-    ref *= 1 + np.random.normal(0, 2.5e-5)
-    # Round reference price to limit unnecessary precision
-    ref = round(ref, 4)
+    ref *= 1 + ref_moves[i]
 
     # Choose an action
-    choice = np.random.choice(choices, p=probabilities)
+    choice = choices[action_choices[i]]
 
     # Generate a quantity for the action
-    quantity = np.random.uniform(1, 10)
+    quantity = quantities[i]
+
+    expectation = expectations[i]
 
     if choice == "nothing":
         trades = []
 
     elif choice == "buy_limit":
-        price = generate_price("buy", bids, asks, ref)
+        price = generate_price("buy", bids, asks, ref, expectation)
         trades, remaining = match_order("buy", price, quantity, bids, asks)
 
         # Rest the remaining part of the order, add it to the relevant book
@@ -70,7 +74,7 @@ for _ in range(decisions):
             bids[price] = bids.get(price, 0) + remaining
 
     elif choice == "sell_limit":
-        price = generate_price("sell", bids, asks, ref)
+        price = generate_price("sell", bids, asks, ref, expectation)
         trades, remaining = match_order("sell", price, quantity, bids, asks)
 
         # Rest the remaining part of the order, add it to the relevant book
