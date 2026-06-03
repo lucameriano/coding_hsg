@@ -53,6 +53,17 @@ def match_order(type, limit_price, quantity, bids, asks, market_order=False):
     return trades, quantity
 
 
+def cancel_limit_order(type, limit_price, quantity, bids, asks):
+    book = bids if type == "buy" else asks
+    if limit_price not in book:
+        return  # nothing there to cancel
+    remaining = book[limit_price] - quantity
+    if remaining <= 0:
+        del book[limit_price]  # level fully pulled
+    else:
+        book[limit_price] = remaining  # partial pull
+
+
 if __name__ == "__main__":
     bids = SortedDict({99: 10, 99.5: 10, 100: 10})
     asks = SortedDict({102: 10, 101.5: 10, 101: 10})
