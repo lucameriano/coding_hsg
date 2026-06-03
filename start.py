@@ -3,8 +3,6 @@ from sortedcontainers import SortedDict
 bids = SortedDict({100: 10})
 asks = SortedDict({101: 10})
 
-#######################################################
-
 
 def match_order(type, limit_price, quantity, bids, asks):
     trades = []
@@ -17,7 +15,10 @@ def match_order(type, limit_price, quantity, bids, asks):
     else:
         raise TypeError(f"Unknown type: {type}")
 
-    while book:
+    # Match as long as there are orders in the book.
+    # Since quantity gets updated in this while loop there should also be a condition,
+    # that quantity > 0 to avoid an infinite loop if it reaches 0.
+    while book and quantity > 0:
         if type == "buy":
             # Lowest ask is the resting order
             book_price, book_quantity = book.peekitem(0)
@@ -54,5 +55,19 @@ def match_order(type, limit_price, quantity, bids, asks):
     return trades, quantity
 
 
-trades, remaining = match_order("buy", 103, 10, bids, asks)
+type = "buy"
+price = 101
+quantity = 11
+trades, remaining = match_order(type, price, quantity, bids, asks)
 print(trades)
+print(bids.get(price, 0))
+
+# Rest the remaining part of the order, add it to the relevant book
+if remaining > 0:
+    if type == "buy":
+        # get(..., 0) avoids a KeyError
+        bids[price] = bids.get(price, 0) + remaining
+    if type == "sell":
+        asks[price] = asks.get(price, 0) + remaining
+print(bids)
+print(asks)
