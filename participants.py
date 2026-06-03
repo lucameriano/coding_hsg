@@ -14,15 +14,14 @@ def generate_price(type, bids, asks, ref):
         raise TypeError(f"Wrong type: {type}")
 
     # Random price
-    return anchor + int(np.random.randint(-2, 3))
+    return round(anchor * (1 + np.random.normal(0, 0.005)), 2)
 
 
 bids = SortedDict({99: 10, 99.5: 10, 100: 10})
 asks = SortedDict({102: 10, 101.5: 10, 101: 10})
-
 np.random.seed(100)
 
-decisions = 2000
+decisions = 20000
 trades_combined = []
 
 choices = [
@@ -39,7 +38,7 @@ ref = 100
 
 for _ in range(decisions):
     choice = np.random.choice(choices, p=probabilities)
-    quantity = np.random.choice(range(1, 10))
+    quantity = np.random.poisson(5)
 
     if choice == "nothing":
         trades = []
@@ -74,12 +73,14 @@ for _ in range(decisions):
         )
 
     elif choice == "cancel_buy_limit":
-        price = generate_price("buy", bids, asks, ref)
+        # Cancel a random bid price
+        price = int(np.random.choice(list(bids.keys())))
         cancel_limit_order("buy", price, quantity, bids, asks)
         trades = []
 
     elif choice == "cancel_sell_limit":
-        price = generate_price("sell", bids, asks, ref)
+        # Cancel a random ask price
+        price = int(np.random.choice(list(asks.keys())))
         cancel_limit_order("sell", price, quantity, bids, asks)
         trades = []
 
