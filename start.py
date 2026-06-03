@@ -2,13 +2,11 @@ from sortedcontainers import SortedDict
 
 bids = SortedDict({100: 10})
 asks = SortedDict({101: 10})
-print(bids)
-print(asks)
 
-bids[99] = 10
-asks[100] = 10
-print(bids)
-print(asks)
+# bids[99] = 10
+# asks[100] = 10
+# print(bids)
+# print(asks)
 
 #######################################################
 
@@ -28,12 +26,13 @@ print(asks)
 # Inputs: type, limit_price, quantity, bids, asks
 def match_order(type, limit_price, quantity, bids, asks):
     trades = []
-    type = "buy"
 
     if type == "buy":
         book = asks
     elif type == "sell":
         book = bids
+    else:
+        raise TypeError("Unknown type")
 
     while book:
         if type == "buy":
@@ -63,13 +62,13 @@ def match_order(type, limit_price, quantity, bids, asks):
 
         # Update the book
         if book_quantity == trade_quantity:
-            del book[book_quantity]
+            del book[book_price]
         else:
             # Small orders that only remove part of the offer
-            book[book_quantity] = book_quantity - trade_quantity
+            book[book_price] = book_quantity - trade_quantity
 
     return trades, quantity
 
 
-trades, quantity = match_order("buy", 100, 10, bids, asks)
+trades, remaining = match_order("buy", 103, 10, bids, asks)
 print(trades)
