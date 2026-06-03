@@ -13,16 +13,24 @@ def generate_price(type, bids, asks, ref):
     else:
         raise TypeError(f"Wrong type: {type}")
 
-    # Random price
-    return round(anchor * (1 + np.random.normal(0, 0.005)), 2)
+    # Generate an expectation for the participant
+    # This expectation represents the change in the fair value that the participant expects in the future
+    expectation = np.random.uniform(-0.0005, 0.0005)
+
+    # Random price round it to 2 digits to keep orderbook not too fragmented
+    random_price = round(anchor * (1 + expectation), 2)
+
+    return random_price
 
 
-bids = SortedDict({99: 10, 99.5: 10, 100: 10})
-asks = SortedDict({102: 10, 101.5: 10, 101: 10})
+# Starting order book
+bids = SortedDict({99: 30, 99.5: 30, 100: 30})
+asks = SortedDict({102: 30, 101.5: 30, 101: 30})
 np.random.seed(100)
 
-decisions = 20000
-trades_combined = []
+# Starting price
+ref = 100
+decisions = 150_000
 
 choices = [
     "nothing",
@@ -34,11 +42,20 @@ choices = [
     "cancel_sell_limit",
 ]
 probabilities = [0.10, 0.25, 0.25, 0.08, 0.08, 0.12, 0.12]
-ref = 100
 
+
+trades_combined = []
 for _ in range(decisions):
+    # Reference price moves randomly
+    ref *= 1 + np.random.normal(0, 2.5e-5)
+    # Round reference price to limit unnecessary precision
+    ref = round(ref, 4)
+
+    # Choose an action
     choice = np.random.choice(choices, p=probabilities)
-    quantity = np.random.poisson(5)
+
+    # Generate a quantity for the action
+    quantity = np.random.uniform(1, 10)
 
     if choice == "nothing":
         trades = []
@@ -62,25 +79,27 @@ for _ in range(decisions):
 
     elif choice == "buy_market":
         market_order = True
+        # Use price 0 as the limit_price since the limit_price is irrelevant for market orders
         trades, unfilled = match_order(
             "buy", 0, quantity, bids, asks, market_order=market_order
         )
 
     elif choice == "sell_market":
         market_order = True
+        # Use price 0 as the limit_price since the limit_price is irrelevant for market orders
         trades, unfilled = match_order(
             "sell", 0, quantity, bids, asks, market_order=market_order
         )
 
     elif choice == "cancel_buy_limit":
-        # Cancel a random bid price
-        price = int(np.random.choice(list(bids.keys())))
+        # Cancel a random bid price. If bids is empty use reference price
+        price = np.random.choice(list(bids.keys())) if bids else ref
         cancel_limit_order("buy", price, quantity, bids, asks)
         trades = []
 
     elif choice == "cancel_sell_limit":
-        # Cancel a random ask price
-        price = int(np.random.choice(list(asks.keys())))
+        # Cancel a random ask price. If asks is empty use reference price
+        price = np.random.choice(list(asks.keys())) if asks else ref
         cancel_limit_order("sell", price, quantity, bids, asks)
         trades = []
 
