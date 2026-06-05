@@ -24,8 +24,13 @@ bids = SortedDict({99: 30, 99.5: 30, 100: 30})
 asks = SortedDict({102: 30, 101.5: 30, 101: 30})
 np.random.seed(100)
 
-# Starting price
-ref = 100
+# Starting midprice
+best_bid = bids.peekitem(-1)[0]
+best_ask = asks.peekitem(0)[0]
+
+# Starting reference price = mid-price, which is (best bid + best ask) / 2
+# The reference price is used for the price used when creating or cancelling orders
+ref = (best_bid + best_ask) / 2
 decisions = 150_000
 
 choices = [
@@ -40,19 +45,25 @@ choices = [
 probabilities = [0.10, 0.25, 0.25, 0.08, 0.08, 0.12, 0.12]
 
 # Pregenerate randomness
-ref_moves = np.random.normal(0, 2.5e-5, size=decisions)
 action_choices = np.random.choice(len(choices), size=decisions, p=probabilities)
 quantities = np.random.uniform(1, 10, size=decisions)
 # Generate an expectation for the participant
 # This expectation represents the change in the fair value that the participant expects in the future
 expectations = np.random.uniform(-0.0005, 0.0005, size=decisions)
 
-
+refs = [ref]
 trades_combined = []
 for i in range(decisions):
-    # DONT USE THIS: CURRENTLY MAINLY RESPONSIBLE FOR THE MOVEMENT
-    # Reference price moves randomly
-    # ref *= 1 + ref_moves[i]
+    # Reference price is now the current mid-price
+    # Use the best bid and asks to compute the mid-price if available
+    # else use the last ref price. refs[i-1] will always be available since current ref gets appended to refs.
+    if bids and asks:
+        best_bid = bids.peekitem(-1)[0]
+        best_ask = asks.peekitem(0)[0]
+        ref = (best_bid + best_ask) / 2
+    else:
+        ref = refs[i - 1]
+    refs.append(ref)
 
     # Choose an action
     choice = choices[action_choices[i]]
@@ -109,6 +120,7 @@ for i in range(decisions):
         trades = []
 
     trades_combined.append(trades)
+
 
 prices = [p for trades in trades_combined for (p, q) in trades]
 plt.plot(prices)
