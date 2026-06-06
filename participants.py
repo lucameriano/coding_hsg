@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from sortedcontainers import SortedDict
-from start import match_order, cancel_limit_order
+from orders import match_order, cancel_limit_order
 
 
 # Define how the price for the limit order creation gets chosen
@@ -186,14 +186,12 @@ for i in range(decisions):
         timestamped_data.append((timestamp, price, qty))
 
 
-# prices = [p for trades in trades_combined for (p, q) in trades]
-# plt.plot(prices)
-# plt.show()
-
-
+# Transform the timestamped data to 1 minute open high low close volume etc. "OHLCV"
 df = pd.DataFrame(timestamped_data, columns=["timestamp", "price", "qty"])
 df["timestamp"] = pd.to_datetime(df["timestamp"], unit="m", origin="2010-01-01")
 df = df.set_index("timestamp")
+
+# Add the new columns
 ohlcv = df["price"].resample("1min").ohlc()
 ohlcv["volume"] = df["qty"].resample("1min").sum()
 ohlcv["n_trades"] = df["price"].resample("1min").count()
