@@ -196,9 +196,12 @@ df["timestamp"] = pd.to_datetime(df["timestamp"], unit="m", origin="2010-01-01")
 df = df.set_index("timestamp")
 ohlcv = df["price"].resample("1min").ohlc()
 ohlcv["volume"] = df["qty"].resample("1min").sum()
+ohlcv["n_trades"] = df["price"].resample("1min").count()
 
-# Minutes with no trades get the 0 volume
+# Minutes with no trades get the 0 volume und 0 trades
 ohlcv["volume"] = ohlcv["volume"].fillna(0)
+ohlcv["n_trades"] = ohlcv["n_trades"].fillna(0).astype(int)
+
 # Minutes with no trades get open high low close = close from 1 minute ago
 filler = ohlcv["close"].shift(1)
 for col in ["open", "high", "low", "close"]:
