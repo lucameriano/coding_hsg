@@ -6,6 +6,11 @@
 
 # to do:
 - trade timestamping for 1s OHLCV data
-- order cancellation
 - arrival process?
+
 - liquidity? market maker?
+
+
+
+- add nonstationarity to return and trades
+- percent based ticks in price func
