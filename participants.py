@@ -1,15 +1,17 @@
 import numpy as np
-from sortedcontainers import SortedDict
 import matplotlib.pyplot as plt
+import pandas as pd
+
+from sortedcontainers import SortedDict
 from start import match_order, cancel_limit_order
 
 
-# Define how the price for the order creation gets chosen
+# Define how the price for the limit order creation gets chosen
 def generate_price(type, bids, asks, ref, expectation):
-    TICK = 0.05
-    # offset < 0 improves/crosses the quote (keeps spread tight, things trade)
+    tick = 0.05
+    # offset < 0 crosses the quote (keeps spread low and things trade)
     # offset > 0 rests behind the midprice
-    offset = np.random.normal(loc=1 * TICK, scale=1.0 * TICK)
+    offset = np.random.normal(loc=1 * tick, scale=1.0 * tick)
 
     if type == "buy":
         anchor = bids.peekitem(-1)[0] if bids else ref
@@ -35,10 +37,10 @@ best_ask = asks.peekitem(0)[0]
 ref = (best_bid + best_ask) / 2
 
 # Number of participant choices that get made
-decisions = 150_000
+decisions = 550_000
 
 
-# Define the available participant choices and their probabilities
+# Define the available participant choices
 choices = [
     "nothing",
     "buy_limit",
@@ -67,9 +69,17 @@ std_devs_expectations = np.abs(np.random.normal(0.00001, 0.000025, size=decision
 expectations = np.random.normal(0, std_devs_expectations, size=decisions)
 
 
+# Initialize vars for liquidity action later
+lp_active_bid = None
+lp_active_ask = None
+
+
 # Create the lists for the simulation
 refs = [ref]
 trades_combined = []
+
+# Create the list of the final data to be used later
+timestamped_data = []
 
 for i in range(decisions):
     # The reference price is now the current mid-price
@@ -138,11 +148,12 @@ for i in range(decisions):
         trades = []
 
     elif choice == "liquidity":
-        lp_active_bid = None
-        lp_active_ask = None
-        lp_size = 3  # The standard size of the LP's quotes
-        lp_spread_ticks = 2  # How far from the mid the LP places quotes (e.g., 2 ticks)
-        TICK = 0.01
+        # Use lower quantity for liquidity
+        lp_size = quantity / 5
+
+        # How far from the mid the LP places quotes
+        lp_spread_ticks = 2
+        lp_TICK = 0.01
 
         # Cancel old LP quotes to avoid stale orders
         if lp_active_bid is not None and lp_active_bid in bids:
@@ -151,9 +162,9 @@ for i in range(decisions):
             cancel_limit_order("sell", lp_active_ask, lp_size, bids, asks)
 
         # Calculate new quotes based on current reference price
-        # Rounding is crucial to match your tick sizes and prevent fragmented books
-        new_bid_price = round(ref - (lp_spread_ticks * TICK), 2)
-        new_ask_price = round(ref + (lp_spread_ticks * TICK), 2)
+        # Rounding prevents fragmented books
+        new_bid_price = round(ref - (lp_spread_ticks * lp_TICK), 2)
+        new_ask_price = round(ref + (lp_spread_ticks * lp_TICK), 2)
 
         # Place the new quotes in the order book
         bids[new_bid_price] = int(bids.get(new_bid_price, 0) + lp_size)
@@ -167,11 +178,34 @@ for i in range(decisions):
 
     trades_combined.append(trades)
 
+    # Timestamp the trades, each timestamp is a second
+    timestamp = i // 10
 
-prices = [p for trades in trades_combined for (p, q) in trades]
-plt.plot(prices)
+    # Store the timestamped data
+    for price, qty in trades:
+        timestamped_data.append((timestamp, price, qty))
+
+
+# prices = [p for trades in trades_combined for (p, q) in trades]
+# plt.plot(prices)
+# plt.show()
+
+
+df = pd.DataFrame(timestamped_data, columns=["timestamp", "price", "qty"])
+df["timestamp"] = pd.to_datetime(df["timestamp"], unit="m", origin="2010-01-01")
+df = df.set_index("timestamp")
+ohlcv = df["price"].resample("1min").ohlc()
+ohlcv["volume"] = df["qty"].resample("1min").sum()
+
+# Minutes with no trades get the 0 volume
+ohlcv["volume"] = ohlcv["volume"].fillna(0)
+# Minutes with no trades get open high low close = close from 1 minute ago
+filler = ohlcv["close"].shift(1)
+for col in ["open", "high", "low", "close"]:
+    ohlcv[col] = ohlcv[col].fillna(filler).bfill()
+
+print(ohlcv)
+print(ohlcv["close"].isna().sum())
+
+plt.plot(ohlcv["close"])
 plt.show()
-
-# print(bids)
-# print(asks)
-# print(prices)
