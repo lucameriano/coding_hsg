@@ -182,7 +182,7 @@ def simulate(decisions=50_000, seed=100):
 
 
 # Transform the timestamped data to 1 minute open high low close volume etc. "OHLCV"
-def transform_data(timestamped_data, verbose=False):
+def prepare_data(timestamped_data, verbose=False):
     df = pd.DataFrame(timestamped_data, columns=["timestamp", "price", "qty"])
 
     # Convert the timestamp to dt and 1-minute unit
@@ -214,6 +214,6 @@ def transform_data(timestamped_data, verbose=False):
 
 if __name__ == "__main__":
     timestamped_data = simulate(decisions=50_000, seed=2)
-    ohlcv = transform_data(timestamped_data, verbose=True)
+    ohlcv = prepare_data(timestamped_data, verbose=True)
     plt.plot(ohlcv["close"])
     plt.show()

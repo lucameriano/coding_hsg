@@ -6,4 +6,3 @@
 
 # to do:
 - prediction model
-- participants.py should use functions only
