@@ -174,16 +174,20 @@ def simulate(decisions=50_000, seed=100):
         # Timestamp the trades, each timestamp is a second
         timestamp = i // 10
 
-        # Store the timestamped data
-        for price, qty in trades:
-            timestamped_data.append((timestamp, price, qty))
+        # Use the mid-price as price, reference price as backup
+        price = (
+            (bids.peekitem(-1)[0] + asks.peekitem(0)[0]) / 2 if bids and asks else ref
+        )
+        qty = sum(qty for _, qty in trades)  # volume this step (0 if no trades)
+        n = len(trades)
+        timestamped_data.append((timestamp, price, qty, n))
 
     return timestamped_data
 
 
 # Transform the timestamped data to 1 minute open high low close volume etc. "OHLCV"
 def prepare_data(timestamped_data, verbose=False):
-    df = pd.DataFrame(timestamped_data, columns=["timestamp", "price", "qty"])
+    df = pd.DataFrame(timestamped_data, columns=["timestamp", "price", "qty", "n"])
 
     # Convert the timestamp to dt and 1-minute unit
     df["timestamp"] = pd.to_datetime(df["timestamp"], unit="m", origin="2010-01-01")
@@ -193,12 +197,12 @@ def prepare_data(timestamped_data, verbose=False):
     ohlcv = df["price"].resample("1min").ohlc()
 
     # Add the new columns
-    ohlcv["volume"] = df["qty"].resample("1min").sum()
-    ohlcv["n_trades"] = df["price"].resample("1min").count()
+    # Fill nans with 0
+    ohlcv["volume"] = df["qty"].resample("1min").sum().fillna(0)
+    ohlcv["n_trades"] = df["n"].resample("1min").sum().fillna(0).astype(int)
 
     # Minutes with no trades get the 0 volume und 0 trades
     ohlcv["volume"] = ohlcv["volume"].fillna(0)
-    ohlcv["n_trades"] = ohlcv["n_trades"].fillna(0).astype(int)
 
     # Minutes with no trades get open high low close = close from 1 minute ago
     filler = ohlcv["close"].shift(1)
