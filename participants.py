@@ -23,7 +23,9 @@ def generate_price(type, bids, asks, ref, expectation):
         raise TypeError(f"Wrong type: {type}")
 
 
-def simulate(seed=100):
+# This function simulates the participant's acttions
+# Decisions is the number of participant choices that get made
+def simulate(decisions=50_000, seed=100):
     # Set randomness
     np.random.seed(seed)
 
@@ -38,9 +40,6 @@ def simulate(seed=100):
     # Starting reference price = mid-price, which is (best bid + best ask) / 2
     # The reference price is used for the price used when creating or cancelling orders
     ref = (best_bid + best_ask) / 2
-
-    # Number of participant choices that get made
-    decisions = 50_000
 
     # Define the available participant choices
     choices = [
@@ -182,14 +181,18 @@ def simulate(seed=100):
     return timestamped_data
 
 
+# Transform the timestamped data to 1 minute open high low close volume etc. "OHLCV"
 def transform_data(timestamped_data, verbose=False):
-    # Transform the timestamped data to 1 minute open high low close volume etc. "OHLCV"
     df = pd.DataFrame(timestamped_data, columns=["timestamp", "price", "qty"])
+
+    # Convert the timestamp to dt and 1-minute unit
     df["timestamp"] = pd.to_datetime(df["timestamp"], unit="m", origin="2010-01-01")
     df = df.set_index("timestamp")
 
-    # Add the new columns
+    # Generate open high low close from the price column
     ohlcv = df["price"].resample("1min").ohlc()
+
+    # Add the new columns
     ohlcv["volume"] = df["qty"].resample("1min").sum()
     ohlcv["n_trades"] = df["price"].resample("1min").count()
 
@@ -209,7 +212,8 @@ def transform_data(timestamped_data, verbose=False):
     return ohlcv
 
 
-timestamped_data = simulate(seed=10)
-ohlcv = transform_data(timestamped_data)
-plt.plot(ohlcv["close"])
-plt.show()
+if __name__ == "__main__":
+    timestamped_data = simulate(decisions=50_000, seed=2)
+    ohlcv = transform_data(timestamped_data, verbose=True)
+    plt.plot(ohlcv["close"])
+    plt.show()

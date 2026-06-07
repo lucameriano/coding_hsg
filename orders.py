@@ -1,5 +1,25 @@
 from sortedcontainers import SortedDict
 
+"""
+match_order generates trades i. e. tries to match an order with the existing book.
+It returns the trades done and the leftover quantity (relevant for big orders that cannot be fully filled).
+
+It handles the following order types:
+
+- Limit order
+The key feature of this order type is that you  provide a limit price which is the worst price you are willing to trade at. 
+When you trade you may get a slightly better price than your limit price, depending on the structure of the book.
+Source: https://www.machow.ski/posts/2021-07-18-introduction-to-limit-order-books
+
+- Market order
+A market order is a special order type that does not require you to provide a limit price. 
+It is an instruction to buy or sell a certain quantity of shares at any price available. 
+If a market Buy order is submitted to the exchange, the exchange will start matching against orders on the 
+ask side of the book regardless of the price until the order is filled, or there is no more quantity remaining.
+Source: https://www.machow.ski/posts/2021-07-18-introduction-to-limit-order-books
+
+"""
+
 
 def match_order(type, limit_price, quantity, bids, asks, market_order=False):
     trades = []
@@ -53,15 +73,22 @@ def match_order(type, limit_price, quantity, bids, asks, market_order=False):
     return trades, quantity
 
 
+# This function removes a limit order from the book that is selected by the "type" argument.
 def cancel_limit_order(type, limit_price, quantity, bids, asks):
     book = bids if type == "buy" else asks
+
+    # nothing there to cancel
     if limit_price not in book:
-        return  # nothing there to cancel
+        return
+
     remaining = book[limit_price] - quantity
+
     if remaining <= 0:
-        del book[limit_price]  # level fully pulled
+        # level fully pulled
+        del book[limit_price]
     else:
-        book[limit_price] = remaining  # partial pull
+        # partial pull
+        book[limit_price] = remaining
 
 
 if __name__ == "__main__":
@@ -71,12 +98,8 @@ if __name__ == "__main__":
     # bids = SortedDict({})
     # asks = SortedDict({})
 
+    ##########################################################################
     # Limit order
-    """
-    The key feature of this order type is that you  provide a limit price which is the worst price you are willing to trade at. 
-    When you trade you may get a slightly better price than your limit price, depending on the structure of the book.
-    Source: https://www.machow.ski/posts/2021-07-18-introduction-to-limit-order-books
-    """
 
     type = "buy"
     # type = "sell"
@@ -96,14 +119,8 @@ if __name__ == "__main__":
     print(asks)
     print("#" * 40)
 
+    ##########################################################################
     # Market order
-    """
-    A market order is a special order type that does not require you to provide a limit price. 
-    It is an instruction to buy or sell a certain quantity of shares at any price available. 
-    If a market Buy order is submitted to the exchange, the exchange will start matching against orders on the 
-    ask side of the book regardless of the price until the order is filled, or there is no more quantity remaining.
-    Source: https://www.machow.ski/posts/2021-07-18-introduction-to-limit-order-books
-    """
 
     market_order = True
     type = "buy"
