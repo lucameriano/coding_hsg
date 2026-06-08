@@ -7,12 +7,28 @@ from orders import match_order, cancel_limit_order
 
 
 # Define how the price for the limit order creation gets chosen
-def generate_price(side, bids, asks, ref, expectation):
+def generate_price(
+    side: str, bids: SortedDict, asks: SortedDict, ref: float, expectation: float
+) -> float:
+    # Validation
+    if not isinstance(side, str):
+        raise TypeError(f"side must be an str, got {type(side)}")
+    if not isinstance(bids, SortedDict):
+        raise TypeError(f"Wrong type for bids: {type(bids)}")
+    if not isinstance(asks, SortedDict):
+        raise TypeError(f"Wrong type for asks: {type(asks)}")
+    if not isinstance(ref, (float, np.floating)):
+        raise TypeError(f"Wrong type for ref: {type(ref)}")
+    if not isinstance(expectation, (float, np.floating)):
+        raise TypeError(f"Wrong type for expectation: {type(expectation)}")
+
     # When buying the anchor is the best bid price if it exists, otherwise it's the reference price
     # An expectation is applied to the anchor and then an offset. The offset guarantees a varying limit order price.
 
-    # The tick
+    # Tick used for generating the offset
     tick = 0.05
+
+    # The offset is drawn from a normal distribution
     # offset < 0 crosses the quote (keeps spread low and things trade)
     # offset > 0 rests behind the midprice
     offset = np.random.normal(loc=1 * tick, scale=1 * tick)
@@ -29,7 +45,15 @@ def generate_price(side, bids, asks, ref, expectation):
 
 # This function simulates the participant's acttions
 # Decisions is the number of participant choices that get made
-def simulate(decisions=50_000, seed=100):
+def simulate(decisions: int = 50_000, seed: int = 100) -> list[tuple]:
+    # Validation
+    if not isinstance(decisions, int):
+        raise TypeError(f"decisions must be an int, got {type(decisions)}")
+    if not isinstance(seed, int):
+        raise TypeError(f"seed must be an int, got {type(seed)}")
+    if decisions <= 0:
+        raise ValueError("Increase the number of decisions for the simulation")
+
     # Set randomness
     np.random.seed(seed)
 
@@ -58,6 +82,7 @@ def simulate(decisions=50_000, seed=100):
     ]
 
     # Pregenerate actions chosen
+    # The highest generated probability defines the action
     probabilities = np.random.rand(decisions, len(choices))
     action_choices = np.argmax(probabilities, axis=1)
 
@@ -71,16 +96,36 @@ def simulate(decisions=50_000, seed=100):
 
     # Generate an expectation for the participant, which represents the change in the fair value that the participant expects in the future
     # The standard deviations of that normal distribution with mean 0 varies randomly
-    std_devs_expectations = np.abs(np.random.normal(0.00001, 0.000025, size=decisions))
+    std_devs_expectations_mean = 0.00001
+    std_devs_expectations_std_dev = 0.000025
+    std_devs_expectations = np.abs(
+        np.random.normal(
+            std_devs_expectations_mean, std_devs_expectations_std_dev, size=decisions
+        )
+    )
     expectations = np.random.normal(0, std_devs_expectations, size=decisions)
 
     # Initialize vars for liquidity action later
     lp_active_bid = None
     lp_active_ask = None
 
+    # Initialize for safety
+    best_bid_price = best_ask_price = ref
+
+    # How far from the mid the liquidity action places quotes
+    lp_spread_ticks = 2
+    lp_TICK = 0.01
+
+    # The liquidity quantity will get divided by this denominator
+    liquidity_quantity_denominator = 5
+
+    # How many levels of the orderbook are considered for possible limit order cancellation
+    top_levels_cancellation = 10
+
     # Create the list of the final data to be used later
     timestamped_data = []
 
+    # Loop through the decisions
     for i in range(decisions):
         # The reference price is now the current mid-price
         # Use the best bid and asks to compute the mid-price if available
@@ -114,7 +159,7 @@ def simulate(decisions=50_000, seed=100):
 
         elif choice == "sell_limit":
             price = generate_price("sell", bids, asks, ref, expectation)
-            trades, remaining = match_order("sell", price, quantity * 1.01, bids, asks)
+            trades, remaining = match_order("sell", price, quantity, bids, asks)
 
             # Rest the remaining part of the order, add it to the relevant book
             if remaining > 0:
@@ -136,23 +181,27 @@ def simulate(decisions=50_000, seed=100):
 
         elif choice == "cancel_buy_limit":
             # Cancel a random bid price. If bids is empty use reference price
-            price = np.random.choice(list(bids.keys())[:10]) if bids else ref
+            price = (
+                np.random.choice(list(bids.keys())[:top_levels_cancellation])
+                if bids
+                else ref
+            )
             cancel_limit_order("buy", price, quantity, bids, asks)
             trades = []
 
         elif choice == "cancel_sell_limit":
             # Cancel a random ask price. If asks is empty use reference price
-            price = np.random.choice(list(asks.keys())[-10:]) if asks else ref
+            price = (
+                np.random.choice(list(asks.keys())[-top_levels_cancellation:])
+                if asks
+                else ref
+            )
             cancel_limit_order("sell", price, quantity, bids, asks)
             trades = []
 
         elif choice == "liquidity":
             # Use lower quantity for liquidity
-            lp_size = quantity / 5
-
-            # How far from the mid the LP places quotes
-            lp_spread_ticks = 2
-            lp_TICK = 0.01
+            lp_size = quantity / liquidity_quantity_denominator
 
             # Cancel old LP quotes to avoid stale orders
             if lp_active_bid is not None and lp_active_bid in bids:
@@ -178,7 +227,7 @@ def simulate(decisions=50_000, seed=100):
         # Timestamp the trades, each timestamp is a second
         timestamp = i // 10
 
-        # Use the mid-price as price, reference price as backup
+        # Pull the best bid and best ask incl. quantities
         if bids:
             best_bid_price, best_bid_qty = bids.peekitem(-1)
         else:
@@ -187,17 +236,23 @@ def simulate(decisions=50_000, seed=100):
             best_ask_price, best_ask_qty = asks.peekitem(0)
         else:
             best_ask_qty = 0
+
+        # Use the mid-price as price, reference price as backup
         price = (best_bid_price + best_ask_price) / 2 if bids and asks else ref
 
         qty = sum(qty for _, qty in trades)  # volume this step (0 if no trades)
         n = len(trades)
+
         timestamped_data.append((timestamp, price, qty, n, best_bid_qty, best_ask_qty))
 
     return timestamped_data
 
 
 # Transform the timestamped data to 1 minute open high low close volume etc. "OHLCV"
-def prepare_data(timestamped_data, verbose=False):
+def prepare_data(timestamped_data: list[tuple], verbose: bool = False) -> pd.DataFrame:
+    if not timestamped_data:
+        raise ValueError("timestamped_data is empty")
+
     df = pd.DataFrame(
         timestamped_data,
         columns=["timestamp", "price", "qty", "n", "best_bid_qty", "best_ask_qty"],
@@ -233,7 +288,7 @@ def prepare_data(timestamped_data, verbose=False):
 
 
 if __name__ == "__main__":
-    timestamped_data = simulate(decisions=50_000, seed=2)
+    timestamped_data = simulate(decisions=50_000, seed=1)
     ohlcv = prepare_data(timestamped_data, verbose=True)
     plt.plot(ohlcv["close"])
     plt.show()
