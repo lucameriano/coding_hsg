@@ -22,16 +22,15 @@ def generate_price(
     if not isinstance(expectation, (float, np.floating)):
         raise TypeError(f"Wrong type for expectation: {type(expectation)}")
 
-    # When buying the anchor is the best bid price if it exists, otherwise it's the reference price
-    # An expectation is applied to the anchor and then an offset. The offset guarantees a varying limit order price.
-    # Tick used for generating the offset:
+    # offset is drawn from a normal distribution centered slightly above 0 (mean = +1 tick)
+    # This means most orders rest passively behind the midprice, which is realistic.
+    # When offset happens to be negative, the order crosses the spread and trades immediately.
     tick = 0.05
-
-    # The offset is drawn from a normal distribution
-    # offset < 0 crosses the quote (keeps spread low and things trade)
-    # offset > 0 rests behind the midprice
     offset = np.random.normal(loc=1 * tick, scale=1 * tick)
 
+    # anchor is the best price on the same side: best bid for buys, best ask for sells.
+    # Falls back to the reference (mid) price if that side of the book is empty.
+    # Expectation shifts the anchor before the random offset is applied.
     if side == "buy":
         anchor = bids.peekitem(-1)[0] if bids else ref
         return round(anchor * (1 + expectation) - offset, 2)
@@ -39,10 +38,10 @@ def generate_price(
         anchor = asks.peekitem(0)[0] if asks else ref
         return round(anchor * (1 + expectation) + offset, 2)
     else:
-        raise TypeError(f"Wrong side: {side}")
+        raise TypeError(f"Wrong side: {side}. Has to be 'buy' or 'sell'.")
 
 
-# This function simulates the participant's acttions
+# This function simulates the participant's actions
 # Decisions is the number of participant choices that get made
 def simulate(decisions: int = 50_000, seed: int = 100) -> list[tuple]:
     # Validation
@@ -113,6 +112,8 @@ def simulate(decisions: int = 50_000, seed: int = 100) -> list[tuple]:
 
     # How far from the mid the liquidity action places quotes
     lp_spread_ticks = 2
+    # lp_TICK is the minimum price increment (0.01).
+    # quotes are placed lp_spread_ticks ticks from mid on each side
     lp_TICK = 0.01
 
     # The liquidity quantity will get divided by this denominator
@@ -223,7 +224,7 @@ def simulate(decisions: int = 50_000, seed: int = 100) -> list[tuple]:
 
             trades = []
 
-        # Timestamp the trades, each timestamp is a second
+        # Each minute contains 10 decisions, so integer-divide the decision index to get the minute timestamp.
         timestamp = i // 10
 
         # Pull the best bid and best ask incl. quantities
@@ -239,7 +240,10 @@ def simulate(decisions: int = 50_000, seed: int = 100) -> list[tuple]:
         # Use the mid-price as price, reference price as backup
         price = (best_bid_price + best_ask_price) / 2 if bids and asks else ref
 
-        qty = sum(qty for _, qty in trades)  # volume this step (0 if no trades)
+        # total volume traded this step (0 if no trades)
+        qty = sum(qty for _, qty in trades)
+
+        # Trade count
         n = len(trades)
 
         timestamped_data.append((timestamp, price, qty, n, best_bid_qty, best_ask_qty))
@@ -285,6 +289,7 @@ def prepare_data(timestamped_data: list[tuple], verbose: bool = False) -> pd.Dat
     filler = ohlcv["close"].shift(1)
     for col in ["open", "high", "low", "close"]:
         ohlcv[col] = ohlcv[col].fillna(filler).bfill()
+        # Note: bfill handles the edge case where the first minute has no prior close to fill from
 
     if verbose:
         print(ohlcv)

@@ -7,15 +7,15 @@ It returns the trades done and the leftover quantity (relevant for big orders th
 It handles the following order types:
 
 - Limit order
-The key feature of this order type is that you  provide a limit price which is the worst price you are willing to trade at. 
-When you trade you may get a slightly better price than your limit price, depending on the structure of the book.
+"The key feature of this order type is that you  provide a limit price which is the worst price you are willing to trade at. 
+When you trade you may get a slightly better price than your limit price, depending on the structure of the book."
 Source: https://www.machow.ski/posts/2021-07-18-introduction-to-limit-order-books
 
 - Market order
-A market order is a special order type that does not require you to provide a limit price. 
+"A market order is a special order type that does not require you to provide a limit price. 
 It is an instruction to buy or sell a certain quantity of shares at any price available. 
 If a market Buy order is submitted to the exchange, the exchange will start matching against orders on the 
-ask side of the book regardless of the price until the order is filled, or there is no more quantity remaining.
+ask side of the book regardless of the price until the order is filled, or there is no more quantity remaining."
 Source: https://www.machow.ski/posts/2021-07-18-introduction-to-limit-order-books
 
 """
@@ -77,10 +77,11 @@ def match_order(
             # Highest bid is the resting order
             book_price, book_quantity = book.peekitem(-1)
 
+            # Limit price not aggressive enough to cross the spread. stop matching
             if not market_order and limit_price > book_price:
                 break
 
-        # Trade happens at the lowest demand
+        # Fill as much as possible at this level, capped by available liquidity
         trade_quantity = min(quantity, book_quantity)
 
         # Book price gets used for the trade: either lowest ask or highest bid
@@ -122,7 +123,7 @@ def cancel_limit_order(
     if limit_price < 0:
         raise ValueError("limit_price cannot be negative")
     if side not in ["buy", "sell"]:
-        raise TypeError(f"Wrong side: {side}")
+        raise TypeError(f"Wrong side: {side}. Has to be 'buy' or 'sell'.")
 
     # Set the book to be used later for the price and quantity
     book = bids if side == "buy" else asks
@@ -138,7 +139,7 @@ def cancel_limit_order(
         # level fully pulled
         del book[limit_price]
     else:
-        # partial pull
+        # partial pull: cancel only part of the quantity at this level, leaving the rest
         book[limit_price] = remaining
 
 
