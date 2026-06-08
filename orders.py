@@ -21,22 +21,36 @@ Source: https://www.machow.ski/posts/2021-07-18-introduction-to-limit-order-book
 """
 
 
-def match_order(type, limit_price, quantity, bids, asks, market_order=False):
+def match_order(side, limit_price, quantity, bids, asks, market_order=False):
     trades = []
 
+    # Type checking
+    if not isinstance(bids, SortedDict):
+        raise TypeError("Wrong type for bids")
+    if not isinstance(asks, SortedDict):
+        raise TypeError("Wrong type for asks")
+    if not isinstance(market_order, bool):
+        raise TypeError("Wrong type for market_order")
+
+    # Check for valid inputs
+    if quantity < 0:
+        raise ValueError("quantity cannot be negative")
+    if not market_order and limit_price < 0:
+        raise ValueError("limit_price cannot be negative")
+
     # Set the book to be used later for the price and quantity
-    if type == "buy":
+    if side == "buy":
         book = asks
-    elif type == "sell":
+    elif side == "sell":
         book = bids
     else:
-        raise TypeError(f"Wrong type: {type}")
+        raise TypeError(f"Wrong side: {side}")
 
     # Match as long as there are orders in the book.
     # Since quantity gets updated in this while loop there should also be a condition,
     # that quantity > 0 to avoid an infinite loop if it reaches 0.
     while book and quantity > 0:
-        if type == "buy":
+        if side == "buy":
             # Lowest ask is the resting order
             book_price, book_quantity = book.peekitem(0)
 
@@ -46,7 +60,7 @@ def match_order(type, limit_price, quantity, bids, asks, market_order=False):
             if not market_order and limit_price < book_price:
                 break
 
-        elif type == "sell":
+        elif side == "sell":
             # Highest bid is the resting order
             book_price, book_quantity = book.peekitem(-1)
 
@@ -73,14 +87,30 @@ def match_order(type, limit_price, quantity, bids, asks, market_order=False):
     return trades, quantity
 
 
-# This function removes a limit order from the book that is selected by the "type" argument.
-def cancel_limit_order(type, limit_price, quantity, bids, asks):
-    book = bids if type == "buy" else asks
+# This function removes a limit order from the book that is selected by the "side" argument.
+def cancel_limit_order(side, limit_price, quantity, bids, asks):
+    # Type checking
+    if not isinstance(bids, SortedDict):
+        raise TypeError("Wrong type for bids")
+    if not isinstance(asks, SortedDict):
+        raise TypeError("Wrong type for asks")
 
-    # nothing there to cancel
+    # Check for valid inputs
+    if quantity < 0:
+        raise ValueError("quantity cannot be negative")
+    if limit_price < 0:
+        raise ValueError("limit_price cannot be negative")
+    if side not in ["buy", "sell"]:
+        raise TypeError(f"Wrong side: {side}")
+
+    # Set the book to be used later for the price and quantity
+    book = bids if side == "buy" else asks
+
+    # Nothing there to cancel
     if limit_price not in book:
         return
 
+    # Calculate the leftover quantity in the book at the limit_price
     remaining = book[limit_price] - quantity
 
     if remaining <= 0:
@@ -92,41 +122,42 @@ def cancel_limit_order(type, limit_price, quantity, bids, asks):
 
 
 if __name__ == "__main__":
+    # Example usage:
+
     bids = SortedDict({99: 10, 99.5: 10, 100: 10})
     asks = SortedDict({102: 10, 101.5: 10, 101: 10})
-
-    # bids = SortedDict({})
-    # asks = SortedDict({})
 
     ##########################################################################
     # Limit order
 
-    type = "buy"
-    # type = "sell"
-    price = 101
+    side = "sell"
+    price = 100
     quantity = 2
-    trades, remaining = match_order(type, price, quantity, bids, asks)
-    print(trades)
+    trades, remaining = match_order(side, price, quantity, bids, asks)
+    print("Limit order")
+    print("Trades: ", trades)
 
     # Rest the remaining part of the order, add it to the relevant book
     if remaining > 0:
-        if type == "buy":
+        if side == "buy":
             # get(..., 0) avoids a KeyError
             bids[price] = bids.get(price, 0) + remaining
-        if type == "sell":
+        if side == "sell":
             asks[price] = asks.get(price, 0) + remaining
-    print(bids)
-    print(asks)
-    print("#" * 40)
+
+    print("Bids: ", bids)
+    print("Asks: ", asks)
+    print("#" * 40, "\n")
 
     ##########################################################################
     # Market order
 
     market_order = True
-    type = "buy"
-    # type = "sell"
+    side = "buy"
     quantity = 22
     trades, unfilled = match_order(
-        type, 0, quantity, bids, asks, market_order=market_order
+        side, 0, quantity, bids, asks, market_order=market_order
     )
-    print(trades)
+    print("Market order")
+    print("Trades: ", trades)
+    print("Unfilled: ", unfilled)

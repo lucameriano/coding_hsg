@@ -7,20 +7,24 @@ from orders import match_order, cancel_limit_order
 
 
 # Define how the price for the limit order creation gets chosen
-def generate_price(type, bids, asks, ref, expectation):
+def generate_price(side, bids, asks, ref, expectation):
+    # When buying the anchor is the best bid price if it exists, otherwise it's the reference price
+    # An expectation is applied to the anchor and then an offset. The offset guarantees a varying limit order price.
+
+    # The tick
     tick = 0.05
     # offset < 0 crosses the quote (keeps spread low and things trade)
     # offset > 0 rests behind the midprice
-    offset = np.random.normal(loc=1 * tick, scale=1.0 * tick)
+    offset = np.random.normal(loc=1 * tick, scale=1 * tick)
 
-    if type == "buy":
+    if side == "buy":
         anchor = bids.peekitem(-1)[0] if bids else ref
         return round(anchor * (1 + expectation) - offset, 2)
-    elif type == "sell":
+    elif side == "sell":
         anchor = asks.peekitem(0)[0] if asks else ref
         return round(anchor * (1 + expectation) + offset, 2)
     else:
-        raise TypeError(f"Wrong type: {type}")
+        raise TypeError(f"Wrong side: {side}")
 
 
 # This function simulates the participant's acttions
