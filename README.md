@@ -1,4 +1,7 @@
 # coding_hsg
 
 # todo:
-- tests
+- imbalance feature
+- feature importance
+- documentation.md
+- error handling and type checking

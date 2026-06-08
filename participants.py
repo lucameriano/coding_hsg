@@ -175,19 +175,29 @@ def simulate(decisions=50_000, seed=100):
         timestamp = i // 10
 
         # Use the mid-price as price, reference price as backup
-        price = (
-            (bids.peekitem(-1)[0] + asks.peekitem(0)[0]) / 2 if bids and asks else ref
-        )
+        if bids:
+            best_bid_price, best_bid_qty = bids.peekitem(-1)
+        else:
+            best_bid_qty = 0
+        if asks:
+            best_ask_price, best_ask_qty = asks.peekitem(0)
+        else:
+            best_ask_qty = 0
+        price = (best_bid_price + best_ask_price) / 2 if bids and asks else ref
+
         qty = sum(qty for _, qty in trades)  # volume this step (0 if no trades)
         n = len(trades)
-        timestamped_data.append((timestamp, price, qty, n))
+        timestamped_data.append((timestamp, price, qty, n, best_bid_qty, best_ask_qty))
 
     return timestamped_data
 
 
 # Transform the timestamped data to 1 minute open high low close volume etc. "OHLCV"
 def prepare_data(timestamped_data, verbose=False):
-    df = pd.DataFrame(timestamped_data, columns=["timestamp", "price", "qty", "n"])
+    df = pd.DataFrame(
+        timestamped_data,
+        columns=["timestamp", "price", "qty", "n", "best_bid_qty", "best_ask_qty"],
+    )
 
     # Convert the timestamp to dt and 1-minute unit
     df["timestamp"] = pd.to_datetime(df["timestamp"], unit="m", origin="2010-01-01")
@@ -198,11 +208,13 @@ def prepare_data(timestamped_data, verbose=False):
 
     # Add the new columns
     # Fill nans with 0
+    # Minutes with no trades get the 0 volume und 0 trades
     ohlcv["volume"] = df["qty"].resample("1min").sum().fillna(0)
     ohlcv["n_trades"] = df["n"].resample("1min").sum().fillna(0).astype(int)
 
-    # Minutes with no trades get the 0 volume und 0 trades
-    ohlcv["volume"] = ohlcv["volume"].fillna(0)
+    # Use the most recent bid and ask quantities
+    ohlcv["best_bid_qty"] = df["best_bid_qty"].resample("1min").last().fillna(0)
+    ohlcv["best_ask_qty"] = df["best_ask_qty"].resample("1min").last().fillna(0)
 
     # Minutes with no trades get open high low close = close from 1 minute ago
     filler = ohlcv["close"].shift(1)
