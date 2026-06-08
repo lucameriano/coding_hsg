@@ -24,8 +24,7 @@ def generate_price(
 
     # When buying the anchor is the best bid price if it exists, otherwise it's the reference price
     # An expectation is applied to the anchor and then an offset. The offset guarantees a varying limit order price.
-
-    # Tick used for generating the offset
+    # Tick used for generating the offset:
     tick = 0.05
 
     # The offset is drawn from a normal distribution
@@ -250,6 +249,13 @@ def simulate(decisions: int = 50_000, seed: int = 100) -> list[tuple]:
 
 # Transform the timestamped data to 1 minute open high low close volume etc. "OHLCV"
 def prepare_data(timestamped_data: list[tuple], verbose: bool = False) -> pd.DataFrame:
+    # Validation
+    if not isinstance(timestamped_data, list):
+        raise TypeError(
+            f"timestamped_data must be a list, got {type(timestamped_data)}"
+        )
+    if not isinstance(verbose, bool):
+        raise TypeError(f"verbose must be bool, got {type(verbose)}")
     if not timestamped_data:
         raise ValueError("timestamped_data is empty")
 

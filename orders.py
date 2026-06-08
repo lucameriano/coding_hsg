@@ -31,19 +31,13 @@ def match_order(
 ) -> tuple[list[tuple[float, float]], float]:
     trades = []
 
-    # Set the book to be used later for the price and quantity
-    if side == "buy":
-        book = asks
-    elif side == "sell":
-        book = bids
-    else:
-        raise TypeError(f"Wrong side: {side}")
-
     # Type checking
     if not isinstance(side, str):
         raise TypeError(f"Wrong type for side: {type(side)}")
     if not isinstance(limit_price, (int, float)):
         raise TypeError(f"Wrong type for limit_price: {type(limit_price)}")
+    if not isinstance(quantity, (int, float)):
+        raise TypeError(f"Wrong type for quantity: {type(quantity)}")
     if not isinstance(bids, SortedDict):
         raise TypeError(f"Wrong type for bids: {type(bids)}")
     if not isinstance(asks, SortedDict):
@@ -56,6 +50,14 @@ def match_order(
         raise ValueError("quantity cannot be negative")
     if not market_order and limit_price < 0:
         raise ValueError("limit_price cannot be negative")
+
+    # Set the book to be used later for the price and quantity
+    if side == "buy":
+        book = asks
+    elif side == "sell":
+        book = bids
+    else:
+        raise TypeError(f"Wrong side: {side}")
 
     # Match as long as there are orders in the book.
     # Since quantity gets updated in this while loop there should also be a condition,
@@ -107,6 +109,8 @@ def cancel_limit_order(
         raise TypeError(f"Wrong type for side: {type(side)}")
     if not isinstance(limit_price, (int, float)):
         raise TypeError(f"Wrong type for limit_price: {type(limit_price)}")
+    if not isinstance(quantity, (int, float)):
+        raise TypeError(f"Wrong type for quantity: {type(quantity)}")
     if not isinstance(bids, SortedDict):
         raise TypeError(f"Wrong type for bids: {type(bids)}")
     if not isinstance(asks, SortedDict):
