@@ -92,7 +92,7 @@ def simulate(decisions: int = 50_000, seed: int = 100) -> list[tuple]:
     # Set negative values to 0
     quantities = np.where(dist >= 0, dist, 0)
 
-    # Generate an expectation for the participant, which represents the change in the fair value that the participant expects in the future
+    # Generate an expectation for the participant, which represents how aggressively each order is priced
     # The standard deviations of that normal distribution with mean 0 varies randomly
     std_devs_expectations_mean = 0.00001
     std_devs_expectations_std_dev = 0.000025

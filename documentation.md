@@ -15,7 +15,31 @@ More information: https://www.machow.ski/posts/2021-07-18-introduction-to-limit-
 
 # System Architecture
 Data flow: 
+
+## orders.py
 `orders.py` contains the functions `match_order` and `cancel_limit_order`. 
+`match_order` handles incoming limit and market orders. It takes in the details of the order (bid or ask side, limit price, quantity and the market order flag) as well as the current books (bids and asks). If the inputs are valid it sets the opposite side of the order as the book. Then, as long as the quantity is positive, it matches the order to exisisting orders in the book and continues until the quantity is no longer positive or there are no more orders in the respective book. When choosing the price of the exchange it applies the convention specified above. For each exchange the limiting quantity is the minimum of the quantity in the order or the quantity of the best book order. The function outputs a list of trades and a float of the quantity.
+
+`cancel_limit_order` takes the same inputs as `match_order` except for the market order flag. The logic of this function is simple: For the given inputs it either removes a limit price level completely (if the removed quantity is equal to the quantity in the book) or partially. This function returns None.
+
+## participants.py
+`participants.py` contains three functions. `generate_price` defines how the limit price of a new limit order gets chosen. It takes the side, bid and ask books, a reference price and an expected change as inputs. The reference price is the last existing mid-price and the expectation is a randomly drawn value of a normal distribution with mean 0 and varying standard deviation. 
+The limit price gets chosen in the following way: First, an anchor is chosen. The anchor is the best bid for buy orders and the best ask for sell orders if the respective book is not empty, otherwise the is set to the reference price. 
+Then, the anchor gets multiplied with the term (1 + expectation). This introduces some randomness and can be interpreted as how aggressivly an order is priced.
+
+Then an offset is applied, either added for buy orders or subtracted for sell orders. This pushes orders away from the best price and is aimed to introduce realism. Looking at the buy order behaviour we can see that the order price gets reduced, this means there won't be an immediate trade. The same effect occurs for sell orders. The offset is drawn from a normal distribution with mean 0.05 and standard deviation 0.05 and therefore expected to be mostly positive. The return value is rounded to two decimals to prevent the book from fragmenting.
+
+`simulate` combines the functionality to produce the order book simulation. Its inputs are the number of decisions and the random seed. The simulation starts using a fixed orderbook with a mid-price of 100.025 and orders in each book. In this function a number of decisions will randomly be made, chosen from the following options: do nothing, place a limit buy order, place a limit sell order, place a market buy order, place a market sell order, cancel a limit buy order, cancel a limit sell order or provide liquidity. 
+
+For actions that require a quantity, one will be drawn from a half-normal distribution with mean 0 and standard deviation between 1 and 100. This was chosen to allow widely varying amounts of used quantities without too much complexity.
+
+`prepare_data` uses the timestamped data and generates the pandas dataframe that will serve as the starting point for the mid-price directional prediction. The function generates an open, high, low and close (OHLC) of the mid-price using pandas .ohlc(). The volume and number of trades are summed for each 1-minute interval and empty minutes are filled with 0. For the best bid and ask quantity only the most recent value for each interval is used and empty values are filled with 0. As is conventional for OHLC data, if there is no price change over an interval the last close is used for all four OHLC columns using .fillna(). bfill() handles the edge case where the first minute has no prior close to fill from.
 
 
-The trades, state of the orderbook and the mid-price data will be collected
+## prediction.ipynb
+
+
+# Defaults
+
+
+# Limitations and Assumptions
