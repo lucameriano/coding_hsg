@@ -12,8 +12,3 @@ Documentation: [documentation.md](documentation.md)
 ## Run in Google Colab
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/lucameriano/coding_hsg/blob/main/prediction.ipynb?force_reload=true)
 
-
-
-# todo:
-- error handling and type checking
-- comments
