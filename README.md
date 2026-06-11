@@ -1,5 +1,8 @@
 # coding_hsg
 
 # todo:
-- documentation.md
 - error handling and type checking
+- comments
+
+- documentation.md
+- readme.md: libraries etc. + colab Link
