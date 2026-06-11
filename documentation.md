@@ -33,13 +33,30 @@ Then an offset is applied, either added for buy orders or subtracted for sell or
 
 For actions that require a quantity, one will be drawn from a half-normal distribution with mean 0 and standard deviation between 1 and 100. This was chosen to allow widely varying amounts of used quantities without too much complexity.
 
+Liquidity provider: 
+
 `prepare_data` uses the timestamped data and generates the pandas dataframe that will serve as the starting point for the mid-price directional prediction. The function generates an open, high, low and close (OHLC) of the mid-price using pandas .ohlc(). The volume and number of trades are summed for each 1-minute interval and empty minutes are filled with 0. For the best bid and ask quantity only the most recent value for each interval is used and empty values are filled with 0. As is conventional for OHLC data, if there is no price change over an interval the last close is used for all four OHLC columns using .fillna(). bfill() handles the edge case where the first minute has no prior close to fill from.
 
 
 ## prediction.ipynb
 
+The notebook runs a simulation with 150'000 decisions and the fixed seed 50 for reproducability. This generates roughly 11 days of 24-hour data. The prediction target is defined as the future 1-minute return of the mid-price close > 0.
 
-# Defaults
+To predict this target percentage change, rolling mean and rolling standard deviation features are generated from the OHLC, volume and number of trades columns. Multiple timeframes (1, 5, 10, 20 min) capture both short-term momentum and longer-term trends. Furthermore lagged return features are added to capture autocorrelation in returns. Additionally, an orderbook feature called "snapshot imbalance" is added. It is the ratio of the best bid quantity to the sum of the best bid and best ask quantity. Values near 1 indicate more buying pressure, whereas values near 0 indicate selling pressure.
+
+Infinite values values are replaced with NaN values, which are then forward filled to avoid gaps in the data. Finally, the target and the features are split into separate dataframes: X and y.
+
+The training and evaluation of the models is conducted using a time-series split with an expanding training window and a fixed size testing window. Five folds are used to evaluate the performance over time. The following displays how the evaluation is structured:
+![TimeSeriesSplit](image-1.png)
+
+Three different models are compared: XGBoost, logistic regression and Random Forest. This way both linear models with logistic regression and non-linear models with XGBoost and Random Forest are compared. The depth of the non-linear models is set to 3 to avoid overfitting. The feature data is scaled using a StandardScaler (standardization), which is fit only on training data. The evaluation metric is the ROC AUC, since classification is evaluated. A random classifier achieves a ROC AUC score of 0.5 and a higher value indicitaes higher predictive performance. The scores of the models are shown in the following plot. While all three models achieve scores consistenly better than random logistic regression and Random Forest perform best on this data, scoring between around 0.525 and 0.57.
+![ROC AUC scores](image.png)
+
+
+The following plot shows the feature importance for the random forest model. For this seed and the RF model of the last fold the features using bid quantity and ask quantity are the most important. The most recent 1-minute return of close also is quite important.
+![Feature importance](image-2.png)
+
+Lastly some characteristics of the data are displayed in the notebook. 
 
 
 # Limitations and Assumptions
