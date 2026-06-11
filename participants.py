@@ -27,7 +27,8 @@ def generate_price(
 
     # offset is drawn from a normal distribution centered slightly above 0 (mean = +1 tick)
     # This means most orders rest passively behind the midprice, which is realistic.
-    # When offset happens to be negative, the order crosses the spread and trades immediately.
+    # A negative offset prices the order more aggressively than the best same-side
+    # price. If it reaches the opposite side it crosses the spread and trades immediately.
     tick = 0.05
     offset = np.random.normal(loc=1 * tick, scale=1 * tick)
 
@@ -41,7 +42,7 @@ def generate_price(
         anchor = asks.peekitem(0)[0] if asks else ref
         return round(anchor * (1 + expectation) + offset, 2)
     else:
-        raise TypeError(f"Wrong side: {side}. Has to be 'buy' or 'sell'.")
+        raise ValueError(f"Wrong side: {side}. Has to be 'buy' or 'sell'.")
 
 
 # This function simulates the participant's actions
@@ -88,7 +89,8 @@ def simulate(decisions: int = 50_000, seed: int = 100) -> list[tuple]:
     action_choices = np.argmax(probabilities, axis=1)
 
     # Randomly generated order quantities
-    # A half-normal distribution (normal but cut at >= 0 is used)
+    # Censored normal: negative draws are set to 0, so roughly half of the
+    # quantities end up being 0 (those actions effectively do nothing)
     # The standard deviations of that distribution varies randomly
     std_devs_quantities = np.random.randint(1, 100, size=decisions)
     dist = np.random.normal(0, std_devs_quantities, size=decisions)
@@ -122,7 +124,7 @@ def simulate(decisions: int = 50_000, seed: int = 100) -> list[tuple]:
     # The liquidity quantity will get divided by this denominator
     liquidity_quantity_denominator = 5
 
-    # How many levels of the orderbook are considered for possible limit order cancellation
+    # How many levels of the order book are considered for possible limit order cancellation
     top_levels_cancellation = 10
 
     # Create the list of the final data to be used later
