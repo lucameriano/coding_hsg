@@ -57,7 +57,7 @@ def match_order(
     elif side == "sell":
         book = bids
     else:
-        raise TypeError(f"Wrong side: {side}")
+        raise ValueError(f"Wrong side: {side}")
 
     # Match as long as there are orders in the book.
     # Since quantity gets updated in this while loop there should also be a condition,
@@ -105,6 +105,12 @@ def match_order(
 def cancel_limit_order(
     side: str, limit_price: float, quantity: float, bids: SortedDict, asks: SortedDict
 ) -> None:
+    """
+    Design choice: cancelling more quantity than rests at the level is allowed
+    and simply removes the entire level. This mirrors real exchanges, where a
+    cancel request for an already partially-filled order cancels whatever
+    remains rather than raising an error.
+    """
     # Type checking
     if not isinstance(side, str):
         raise TypeError(f"Wrong type for side: {type(side)}")
@@ -123,7 +129,7 @@ def cancel_limit_order(
     if limit_price < 0:
         raise ValueError("limit_price cannot be negative")
     if side not in ["buy", "sell"]:
-        raise TypeError(f"Wrong side: {side}. Has to be 'buy' or 'sell'.")
+        raise ValueError(f"Wrong side: {side}. Has to be 'buy' or 'sell'.")
 
     # Set the book to be used later for the price and quantity
     book = bids if side == "buy" else asks

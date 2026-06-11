@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+import numbers
 
 from sortedcontainers import SortedDict
 from orders import match_order, cancel_limit_order
@@ -17,9 +18,11 @@ def generate_price(
         raise TypeError(f"Wrong type for bids: {type(bids)}")
     if not isinstance(asks, SortedDict):
         raise TypeError(f"Wrong type for asks: {type(asks)}")
-    if not isinstance(ref, (float, np.floating)):
+    # numbers.Real accepts int, float, and numpy numeric types
+    # matching the (int, float) checks in orders.py
+    if not isinstance(ref, numbers.Real):
         raise TypeError(f"Wrong type for ref: {type(ref)}")
-    if not isinstance(expectation, (float, np.floating)):
+    if not isinstance(expectation, numbers.Real):
         raise TypeError(f"Wrong type for expectation: {type(expectation)}")
 
     # offset is drawn from a normal distribution centered slightly above 0 (mean = +1 tick)

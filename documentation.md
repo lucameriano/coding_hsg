@@ -49,16 +49,15 @@ Infinite values are replaced with NaN values, which are then forward filled to a
 
 The training and evaluation of the models is conducted using a time-series split with an expanding training window and a fixed size testing window. Five folds are used to evaluate the performance over time. The following displays how the evaluation is structured.
 
-![TimeSeriesSplit](image-1.png)
+![TimeSeriesSplit](TimeSeriesSplit.png)
 
-Three different models are compared: XGBoost, logistic regression and Random Forest. This way both linear models with logistic regression and non-linear models with XGBoost and Random Forest are compared. The depth of the non-linear models is set to 3 to avoid overfitting. The feature data is scaled using a StandardScaler (standardization), which is fit only on training data. The evaluation metric is the ROC AUC, since classification is evaluated. A random classifier achieves a ROC AUC score of 0.5 and a higher value indicates higher predictive performance. The scores of the models are shown in the following plot. While all three models achieve scores consistently better than random, logistic regression and Random Forest perform best on this data, scoring between around 0.525 and 0.57.
+Three different models are compared: XGBoost, logistic regression and Random Forest. This way both linear models with logistic regression and non-linear models with XGBoost and Random Forest are compared. The depth of the non-linear models is set to 3 to avoid overfitting. The feature data is scaled using a StandardScaler (standardization), which is fit only on training data. The evaluation metric is the ROC AUC, since classification is evaluated. A random classifier achieves a ROC AUC score of 0.5 and a higher value indicates higher predictive performance. The scores of the models are shown in the following plot. Logistic regression and Random Forest perform best on this data, scoring between around 0.52 and 0.57 ROC AUC. XGBoost mostly performs better than random apart from the 5th fold.
 
-![ROC AUC scores](image.png)
-
+![ROC AUC scores](ROC_AUC.png)
 
 The following plot shows the feature importance for the random forest model. For this seed and the RF model of the last fold the features using bid quantity and ask quantity are the most important. The most recent 1-minute return of close also is quite important.
 
-![Feature importance](image-2.png)
+![Feature importance](feature_importance.png)
 
 Lastly some characteristics of the data are displayed in the notebook. The data shows that there returns are mostly bound between 0.001 and -0.001, with some infrequent spikes. There also is some negative autocorrelation to past returns, indicating mean-reversion.
 
